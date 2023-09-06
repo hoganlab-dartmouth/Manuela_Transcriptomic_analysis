@@ -1,0 +1,707 @@
+---
+title: "Manuela analysis"
+author: "Carson"
+date: "2023-07-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+
+
+#### Load in data - Dataset S4 All RNA Seq samples (after filtering) aligned to the PA14 reference genome
+```{r}
+PA14_allgenes <- read.csv("Dataset_S4_PA14_compendium.csv")
+
+View(PA14_allgenes)
+
+```
+
+##I have selected a few genes of interest to first practice and test which statistics and analysis are best for this data
+I found the locus tag by searching gene symbols on pseudomonas.com they are listed below in square brackets
+
+1. Type II NADH:quinone Oxidoreductase (NDH-2)- ndh  [PA14_58870]
+2. Dihydroorotate:quinone Oxidoreductase-  pyrD [PA14_24640]
+3. Glycerol-3-phosphate:quinone Oxidoreductase-  glpD [PA14_17930]
+4. Malate:quinone Oxidoreductase-  
+ mqoa [PA14_19470]
+ mqob [PA14_61400]
+5. ETF: quinone Oxidoreductase-  
+etfA [PA14_25880]
+etfB [PA14_25860]
+6. L-proline:quinone Oxidoreductase- putA [PA14_54170]
+7. D- amino acid:quinone Oxidoreductase- dadA [PA14_70040]
+8. Glucose:quinone Oxidoreductase-  gcd [PA14_34970]
+9. Complex I- nuo 
+nuoE - [PA14_29980]
+nuoH - [PA14_29930]
+nuoF - [PA14_29970]
+nuoL - [PA14_29920]
+10. Succinate:quinone Oxidoreductase-  sdh (A-D) 
+sdhA - [PA14_44030]
+sdhB - [PA14_44020]
+sdhC - [PA14_44060]
+sdhD - [PA14_44050]
+
+11. cytochrome c oxidase- ccoN2 [PA14_40510]
+
+12. Formate dehydrogenase- 
+fdnI – [PA14_63570]
+fdnG – [PA14_63605]
+fdnH – [PA14_63580]
+13. Na+-translocating NADH:quinone oxidoreductase -  
+nqrA – [PA14_25280]
+nqrB – [PA14_25305]
+nqrC – [PA14_25320]
+nqrD  -[PA14_25330]
+nqrE  -[PA14_25340]
+nqrF – [PA14_25350]
+14. cytochrome bc1-cyoB – [PA14_47190]
+15. Cytochrome bd oxidase- cyoD – [PA14_47160]
+16. Nitric oxide reductases – 
+norA – [PA14_69890]
+norB – [PA14_06830]
+norC – [PA14_06810]    
+17. particulate methane monooxygenase- 
+pmoA – [
+pmoB – [
+18. Nitrate reductase –
+napA – [PA14_49250]
+napB – [PA14_49260]
+napC – [PA14_49270]
+napD – [PA14_49230]
+napE – [PA14_49210]
+napF – [PA14_49220]
+19. Ion-translocating oxidoreductase-
+rnfB – [PA14_18930]
+rnfC – [PA14_18920]
+
+
+My housekeeping gene will start out as L-aspartate oxidase- nadB - [PA14_54450]
+
+I want to get a mean, median, and overall experession
+
+#I need to match gene ID/names to the id numbers in the CSV file
+
+```{r}
+# Let's save this list of names in a new variable:
+
+# Specify the PA14_Gene values to include
+selected_genes_HKG <- c("PA14_58870", "PA14_24640", "PA14_17930","PA14_19470","PA14_61400",  "PA14_25880", "PA14_25860","PA14_54170", "PA14_70040", "PA14_34970", "PA14_29980",
+                    "PA14_29930", "PA14_29970", "PA14_29920", "PA14_44030",
+                    "PA14_44020", "PA14_44060", "PA14_44050", "PA14_40510", "PA14_63570",   "PA14_63605","PA14_63580", "PA14_25280",  "PA14_25305", "PA14_25320", "PA14_25330", "PA14_25340", "PA14_25350", "PA14_47190", "PA14_47160", "PA14_69890", "PA14_06830", "PA14_06810", "PA14_49250", "PA14_49260", "PA14_49270", "PA14_49230", "PA14_49210", "PA14_49220", "PA14_18930", "PA14_18920", "PA14_54450")
+
+
+View(selected_genes_HKG)
+
+# Rename the column 'X' to 'PA14_Gene'
+PA14_allgenes <- PA14_allgenes %>%
+  rename(PA14_Gene = X)
+
+
+# only genes of interest
+ETC_full <- PA14_allgenes %>%
+  filter(PA14_Gene %in% selected_genes_HKG)
+
+# Named vector with ID and Name mapping
+id_to_name <- c("PA14_58870" = "ndh", "PA14_17930" = "glpD", "PA14_34970" = "gcd", "PA14_29980"= "nuoE",
+                  "PA14_29930" = "nuoH", "PA14_29970" = "nuoF", "PA14_29920" = "nuoL", "PA14_44030" = "sdhA",
+                  "PA14_44020" = "sdhB", "PA14_44060" = "sdhC", "PA14_44050" = "sdhD", "PA14_40510" = "ccoN2", "PA14_24640" = "pyrD","PA14_19470" = "mqoa","PA14_61400"= "mqob",  "PA14_25880" = "etfA", "PA14_25860" = "etfB","PA14_54170" = "putA", "PA14_70040" = "dadA", "PA14_63570" = "fdnI",   "PA14_63605" = "fdnG","PA14_63580" = "fdnH", "PA14_25280" = "nqrA",  "PA14_25305" = "nqrB", "PA14_25320" = "nqrC", "PA14_25330" = "nqrD", "PA14_25340" = "nqrE", "PA14_25350" = "nqrF", "PA14_47190" = "cyoB", "PA14_47160" = "cyoD", "PA14_69890" = "norA", "PA14_06830" = "norB", "PA14_06810" = "norC", "PA14_49250" = "napA", "PA14_49260" = "napB", "PA14_49270" = "napC", "PA14_49230" = "napD", "PA14_49210" = "napE", "PA14_49220" = "napF", "PA14_18930" = "rnfB", "PA14_18920" = "rnfC",
+                  "PA14_54450" = "nadB")
+# Replace ID numbers with names using the named vector
+ETC_full$PA14_Gene <- id_to_name
+# Separate part of column name and delete it
+new_colnames <- sub(".ERX\\d+\\.salmon", "", names(ETC_full))
+names(ETC_full) <- new_colnames
+
+names(ETC_stats_all) <- new_colnames
+
+
+SRX_colnames <- sub(".SRX\\d+\\.salmon", "", names(ETC_full))
+names(ETC_full) <- SRX_colnames
+
+names(ETC_stats_all) <- SRX_colnames
+
+
+```
+
+
+I am trying to make a box plot, bar graph, or violin plot that shows which samples have higher/lower expression for each gene.
+
+```{r}
+
+# Transpose the dataframe to create the desired structure
+transposed_ETC <- ETC_test_genes %>%
+  pivot_longer(cols = -PA14_Gene,  # Exclude 'PA14_Gene' from transposition
+               names_to = "Sample",  # Create a new column 'Sample' with original column names
+               values_to = "Expression")  # Create a new column 'Expression' with cell values
+transposed_ETC_full <- ETC_full %>%
+  pivot_longer(cols = -PA14_Gene,  # Exclude 'PA14_Gene' from transposition
+               names_to = "Sample",  # Create a new column 'Sample' with original column names
+               values_to = "Expression")  # Create a new column 'Expression' with cell values
+
+
+# Create a table with the number of unique values in the "Sample" and "PA14_Gene" columns
+summary_table <- transposed_ETC %>%
+  summarize(Num_Unique_Sample = n_distinct(Sample), #2333 samples
+            Num_Unique_Gene = n_distinct(PA14_Gene)) #13 genes
+
+# Print the summary table
+print(summary_table)
+
+# Calculate the difference of expression for all genes from HKG PA14_54450 in each sample
+delta_expression_ETC_full <- transposed_ETC_full %>%
+  mutate(delta_expression = Expression - Expression[PA14_Gene == "nadB"])
+
+relative_expression_ETC_full <- transposed_ETC_full %>%
+  mutate(relative_expression = Expression / Expression[PA14_Gene == "nadB"])
+
+# Calculate the difference of expression for all genes from HKG PA14_54450 in each sample
+log2_expression_ETC_full <- transposed_ETC_full %>%
+  mutate(log2_expression = log2(Expression))
+
+# Calculate the difference of expression for all genes from HKG PA14_54450 in each sample
+delta_expression_ETC_full <- log2_expression_ETC_full %>%
+  mutate(log2_delta_expression = log2_expression - log2_expression[PA14_Gene == "nadB"])
+
+
+# Create the boxplot with points of the baseline expression
+boxplot <- ggplot(data = relative_expression_ETC_full, aes(x = PA14_Gene, y = Expression)) +
+  geom_boxplot(outlier.size = 0.5) +                 # Create the boxplot
+  theme_bw() +
+  labs(x = "Gene", y = "Expression", title = "Boxplot with Sample Points for Selected Genes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+boxplot
+
+
+# Save the plot as a PDF file
+ggsave("PA14_GeneExpression_boxplot.pdf", boxplot, width = 10, height = 6)
+
+# Create the boxplot with points of the delta expression (normalized against HKG PA14_54450)
+boxplot_relative <- ggplot(data = relative_expression_ETC_full, aes(x = PA14_Gene, y = relative_expression)) +
+  geom_boxplot(outlier.size = 0.5) +                 # Create the boxplot
+  theme_bw() +
+  labs(x = "Gene", y = "Delta Expression", title = "Boxplot with Sample Points for Selected Genes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+boxplot_relative
+
+# Save the plot as a PDF file
+ggsave("PA14_GeneExpression_boxplot_relative.pdf", boxplot_delta, width = 10, height = 6)
+
+# Create the boxplot with points of the expression (normalized against HKG PA14_54450), further log2
+boxplot_log2 <- ggplot(data = relative_expression_ETC_full, aes(x = PA14_Gene, y = log2(Expression))) +
+  geom_boxplot(outlier.size = 0.5) +                 # Create the boxplot
+  theme_bw() +
+  labs(x = "Gene", y = "Log2( Expression)", title = "Boxplot with Sample Points for Selected Genes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+boxplot_log2
+
+# Save the plot as a PDF file
+ggsave("boxplot_log2.pdf", boxplot_log2, width = 10, height = 6)
+
+
+# Create the boxplot with points of the delta expression (normalized against HKG PA14_54450), further log2
+boxplot_relative_log2 <- ggplot(data = relative_expression_ETC_full, aes(x = PA14_Gene, y = log2(relative_expression))) +
+  geom_boxplot(outlier.size = 0.5) +                 # Create the boxplot
+  theme_bw() +
+  labs(x = "Gene", y = "Log2(relative Expression)", title = "Boxplot with Sample Points for Selected Genes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+boxplot_relative_log2
+
+# Save the plot as a PDF file
+ggsave("boxplot_relative_log2.pdf", boxplot_relative_log2, width = 10, height = 6)
+
+rm(boxplot_relative_log2)
+
+
+```
+
+
+#Make some violin plots
+```{r}
+ggplot(relative_expression_ETC_full, aes(x = PA14_Gene , y = log2(relative_expression)))+ 
+ geom_violin() +  # Create the violin plot
+  geom_point(position = position_dodge(width = 0.75), color = "black", size = 0.5)  # Add individual points
+
+
+
+```
+
+
+
+
+# reload raw data and transpose the dataframe
+
+```{r}
+# I need to change the rownames from numbers to the gene IDs from column 1
+# Extract the first column and set it as row names (the first column was named x, The $ lets me select what part of the dataframe PA14_allgenes I want)
+
+for_stats <- read.csv("Dataset_S4_PA14_compendium.csv")
+
+rownames(for_stats) <- for_stats$X
+
+
+# Remove the original first column
+for_stats <- for_stats[, -1]
+
+# Let's save this list of names in a new variable:
+
+rows_of_interest <- c("PA14_58870", "PA14_17930", "PA14_34970", "PA14_29980", "PA14_29930", "PA14_29970",
+                      "PA14_29920", "PA14_44030", "PA14_44020", "PA14_44060", "PA14_44050", "PA14_40510","PA14_54450")
+
+
+View(rows_of_interest)
+#only select the genes of interest
+ETC_stats_all <- for_stats[selected_genes_HKG, ]
+
+# Separate part of column name and delete it
+new_colnames <- sub(".ERX\\d+\\.salmon", "", names(ETC_stats_all))
+names(ETC_stats_all) <- new_colnames
+
+
+SRX_colnames <- sub(".SRX\\d+\\.salmon", "", names(ETC_stats_all))
+names(ETC_full) <- SRX_colnames
+
+names(ETC_stats_all) <- SRX_colnames
+
+
+str(ETC_test_genes)
+# Replace ID numbers with names using the named vector
+
+row.names(ETC_stats_all)<- id_to_name
+
+#transpose
+transposed_ETC_stats <- t(ETC_stats_all)
+
+View(transposed_ETC_stats)
+
+summary(transposed_ETC_stats)
+```
+
+
+#create a stats table
+```{r}
+summary(transposed_ETC_stats)
+
+summary_ETC_genes<- summary(transposed_ETC_stats)
+
+
+stats_table <- data.frame(
+  Min = transposed_ETC_stats[1, ],
+  Q1 = transposed_ETC_stats[2, ],
+  Median = transposed_ETC_stats[3, ],
+  Mean = transposed_ETC_stats[4, ],
+  Q3 = transposed_ETC_stats[5, ],
+  Max = transposed_ETC_stats[6, ]
+)
+
+print(stats_table)
+
+write.csv(stats_table, file = "ETC_Manuela_genes_stats.csv")
+
+
+#sputum only stats
+# Select columns based on the sputum samples in the "Sample" column using subset()
+Sputum_data <- ETC_stats_all[, names(ETC_stats_all) %in% Sputum_samples]
+
+transposed_Sputum_stats <- t(Sputum_data)
+
+Sputum_stats_table <- data.frame(
+  Min = transposed_Sputum_stats[1, ],
+  Q1 = transposed_Sputum_stats[2, ],
+  Median = transposed_Sputum_stats[3, ],
+  Mean = transposed_Sputum_stats[4, ],
+  Q3 = transposed_Sputum_stats[5, ],
+  Max = transposed_Sputum_stats[6, ]
+)
+
+print(Sputum_stats_table)
+
+write.csv(Sputum_stats_table, file = "Sputum_Manuela_genes_stats.csv")
+
+
+#Find the difference between all samples vs only sputum
+
+# Subtract one data frame from the other to find differences
+Stats_differences <- Sputum_stats_table - stats_table
+
+# Print the resulting differences
+print(Stats_differences)
+
+
+write.csv(Stats_differences, file = "Sputum_subtraction_Manuela_genes_stats.csv")
+
+```
+
+
+#Heat map
+```{r}
+
+BiocManager::install("ComplexHeatmap")
+library(ComplexHeatmap)
+
+#install.packages("readxl", repos = "http://cran.us.r-project.org")
+library(readxl)
+
+#install.packages("circlize", repos = "http://cran.us.r-project.org")
+library(circlize)
+
+
+Matrix_Data <- as.matrix(ETC_stats_all) #Why this as.matrix() function? The Heatmap() function expects a data object called a matrix, where all of the variables are of the same data type (e.g., an integer), versus a data frame, where variables can be of different types (integers, strings, etc.)
+ETC_Matrix<- Heatmap(Matrix_Data) 
+ETC_Matrix
+
+
+colres = colorRamp2(c(0, 2500, 5000, 7500, 10000), c("#005073", "#189ad3", "#71c7ec","#ffbaba", "#ff0000")) #Pick basic colors to define the gradient
+
+
+Heatmap(Matrix_Data, name = "TPM", col = colres,
+        show_column_names = FALSE,
+         row_names_gp = gpar(fontsize = 6))
+
+
+
+```
+
+
+#find correlations
+
+
+```{r}
+library(corrplot)
+# Get correlations (by default will do pearson correlation), Calculate the correlation matrix
+
+ETC_cor <- cor(transposed_ETC_stats)
+
+# By default, will show correlations as circles
+# The larger the circle, the larger the absolute correlation
+# Correlation is also shown by color, with positive correlations in blue
+# and negative correlations as red
+corrplot(ETC_cor)
+
+
+# values instead of circles, by adding method = 'number'
+corrplot(ETC_cor, method = 'number')
+
+
+# Or order them by correlation
+corrplot(ETC_cor, method = 'color', order = 'AOE')
+
+ 
+
+# Or by hierarchical clustering with customized font size and color
+corrplot(ETC_cor, method = 'color', 
+        tl.col = "black",  # Set text label color to black
+        tl.cex = 0.75  ,     # Set text label font size to 1.2 (default is 1.0)
+        order = 'hclust')
+
+
+# Let's look at the same plot, but only the lower portion
+corrplot(ETC_cor, method = 'color',  
+        tl.col = "black",  # Set text label color to black
+        tl.cex = 0.75  ,     # Set text label font size to 1.2 (default is 1.0)
+        order = 'hclust', 
+        diag = FALSE, 
+        type = 'lower')
+
+
+# Now that we've seen a few basic aesthetic changes we can make, is any of this 
+# significant?
+# We can find out through cor.mtest!
+ETC_mtest <- cor.mtest(transposed_ETC_stats, conf.level = 0.95)
+
+corrplot(ETC_cor, method = 'color', p.mat = ETC_mtest$p, 
+         diag = FALSE, type = 'lower', order = 'hclust')
+
+# By default, by adding the significance with p.mat, the non-significant 
+# correlations will be denoted with an X.
+
+# If we would like to display the significant correlation coefficients,
+# all we have to do is add the aesthetic arguments for the text
+# addCoef.col determines color, number.cex determines size of text
+corrplot(ETC_cor, method = 'color', p.mat = ETC_mtest$p, type = 'lower',
+         addCoef.col ='black', number.cex = 0.8, order = 'hclust', diag = FALSE)
+
+# To display only your significant coefficients add "insig = 'blank'"
+corrplot(ETC_cor, method = 'color', p.mat = ETC_mtest$p, type = 'lower', 
+         insig = 'blank', addCoef.col ='black', number.cex = 0.8, 
+         order = 'hclust', diag = FALSE)
+
+
+# To display the p-value instead of correlation coefficient, you will need to 
+# first save your corrplot as an object, then use the text command
+corrplot(ETC_cor, p.mat = ETC_mtest$p, method = 'color', type = 'lower', 
+         insig='blank', order = 'hclust', diag = FALSE)$corrPos -> p1
+text(p1$x, p1$y, round(p1$p.value, 3))
+
+# To display significance stars:
+ 
+```
+
+#looking at high vs low gene expression
+
+```{r}
+# Load the dplyr package
+install.packages("dplyr")  # Install if you haven't already
+library(dplyr)
+
+
+# Names you want to select
+gene_select <- ("mqob")
+
+# Select rows based on the names in the "PA14_Gene" column using subset()
+selected_rows <- subset(transposed_ETC_full, PA14_Gene %in% gene_select)
+
+# Print the selected rows
+print(selected_rows)
+
+
+# Step 4: Sort the data frame based on the expression levels
+gene_data_sorted <- selected_rows %>%
+  arrange(Expression)
+
+
+
+# Step 5: Select the samples with the highest or lowest expression levels
+# Replace 'n' with the number of samples you want to select from each end (e.g., 5)
+n <- 25
+
+highest_expression_samples <- gene_data_sorted %>%
+  tail(n) %>%
+  pull(Sample)
+
+
+print(highest_expression_samples)
+
+
+
+
+
+# remove Samples with the zero expression levels
+sorted_no_zeros <- gene_data_sorted[gene_data_sorted$Expression> 0, ]
+# Samples with the lowest expression levels
+lowest_expression_samples <- sorted_no_zeros %>%
+  head(n) %>%
+  pull(Sample)
+
+# I need to change the rownames from numbers to the sample IDs from column 2
+# Extract the second column and set it as row names
+mqob_data<-as.data.frame(gene_data_sorted)
+
+rownames(mqob_data) <- mqob_data$Sample
+
+rownames(mqob_data)
+#delete the sample column
+mqob_data <- mqob_data[, -2]
+
+#Merge the highest 25 and lowest 25 into a list of 50 samples
+combined_list <- c(highest_expression_samples, lowest_expression_samples)
+
+
+mqob_HL<- mqob_data[combined_list, ]
+
+
+# Create a box plot
+ggplot(mqob_HL, aes(x = Expression, y = row.names(mqob_HL), fill = Expression)) +
+  geom_boxplot() +
+  labs(x = "Expression Level", y = "Gene Expression",
+       title = "Gene Expression Levels - Highest vs. Lowest",
+       fill = "Expression Level")
+
+
+
+
+# Assuming you have 'mqob_HL' as your data frame
+# And you have 'Gene_Expression' column representing the gene expression values
+
+library(ggplot2)
+
+# Create the bar graph with y-value labels
+ggplot(mqob_HL, aes(x = row.names(mqob_HL), y = Expression)) +
+  geom_bar(stat = "identity") +
+  #geom_text(aes(label = Expression), vjust = -0.5, size = 3) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Adjust x-axis text angle for better visibility
+
+##################################################### same high/low analysis with nuoL
+
+# Names you want to select
+nuoL_select <- ("nuoL")
+
+# Select rows based on the names in the "PA14_Gene" column using subset()
+selected_rows <- subset(transposed_ETC_full, PA14_Gene %in% nuoL_select)
+
+# Print the selected rows
+print(selected_rows)
+
+
+# Step 4: Sort the data frame based on the expression levels
+gene_data_sorted <- selected_rows %>%
+  arrange(Expression)
+
+
+
+# Step 5: Select the samples with the highest or lowest expression levels
+# Replace 'n' with the number of samples you want to select from each end (e.g., 5)
+n <- 25
+
+highest_expression_samples <- gene_data_sorted %>%
+  tail(n) %>%
+  pull(Sample)
+
+
+print(highest_expression_samples)
+
+# remove Samples with the zero expression levels
+sorted_no_zeros <- gene_data_sorted[gene_data_sorted$Expression> 0, ]
+# Samples with the lowest expression levels
+lowest_expression_samples <- sorted_no_zeros %>%
+  head(n) %>%
+  pull(Sample)
+
+
+# I need to change the rownames from numbers to the sample IDs from column 2
+# Extract the second column and set it as row names
+nuoL_data<-as.data.frame(gene_data_sorted)
+
+rownames(nuoL_data) <- nuoL_data$Sample
+
+rownames(nuoL_data)
+#delete the sample column
+nuoL_data <- nuoL_data[, -2]
+
+#Merge the highest 25 and lowest 25 into a list of 50 samples
+combined_list <- c(highest_expression_samples, lowest_expression_samples)
+
+
+nuoL_HL<- nuoL_data[combined_list, ]
+
+
+# Create a box plot
+ggplot(nuoL_HL, aes(x = Expression, y = row.names(nuoL_HL), fill = Expression)) +
+  geom_boxplot() +
+  labs(x = "Expression Level", y = "Gene Expression",
+       title = "Gene Expression Levels - Highest vs. Lowest",
+       fill = "Expression Level")
+
+
+
+
+# Assuming you have 'nuoL_HL' as your data frame
+# And you have 'Gene_Expression' column representing the gene expression values
+
+library(ggplot2)
+
+# Create the bar graph with y-value labels
+ggplot(nuoL_HL, aes(x = row.names(nuoL_HL), y = Expression)) +
+  geom_bar(stat = "identity") +
+  #geom_text(aes(label = Expression), vjust = -0.5, size = 3) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Adjust x-axis text angle for better visibility
+
+
+nuoL_HL_Log2 <- log2(nuoL_HL$Expression)
+
+
+nuoL_HL <- cbind(nuoL_HL, nuoL_HL_Log2)
+
+#Create the bar graph with log2 y-value labels
+ggplot(nuoL_HL, aes(x = row.names(nuoL_HL), y = nuoL_HL_Log2)) +
+  geom_bar(stat = "identity") +
+  #geom_text(aes(label = Expression), vjust = -0.5, size = 3) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Adjust x-axis text angle for better visibility
+       
+```
+
+#Sputum sample analysis
+
+```{r}
+Sputum_samples <- c("SRX108131","SRX108132","SRX108133","SRX6981205","SRX6981204","SRX6981203","SRX6981202","SRX6981201","SRX6981200","SRX6981199","SRX6981198","SRX6981197","SRX6981196","SRX6981195","SRX6981194","SRX6981193","SRX6981192","SRX6981191","SRX6981190","SRX6981189","SRX6981188","SRX8875458","SRX8875457","SRX8875456","SRX8875454","SRX8875451","SRX8875459","SRX8875455","SRX8875453","SRX8875452","SRX8875450","SRX3789431","SRX3789430","SRX3789429","SRX3789428","SRX3789427","SRX3789426","SRX3789425","SRX3789424","SRX3789423","SRX3789422","SRX3789421","SRX3789420","SRX3789419","SRX3789417","SRX3789416","SRX3789414","SRX3789413","SRX3789411","SRX3789410","SRX3789409","SRX3789408","SRX3789407","SRX3789406","SRX3789405","SRX3789404","SRX3789403","SRX3789402","SRX3789401","SRX3789418","SRX3789400","SRX3789399","SRX3789412","SRX3789415","SRX3789398","SRX3789396","SRX3789395","SRX3789394","SRX3789397","SRX3789393","SRX3789392","SRX3789391","SRX3789390","ERX2326457","ERX2326458","ERX2326461","ERX2326462","ERX2326463","ERX2326464","ERX2326467","ERX2326468","ERX2326469","ERX2326470","ERX2326471","ERX2326472","ERX2326473","ERX2326474","ERX2326475","ERX2326476","ERX2326477","ERX2326478","ERX2326479","ERX2326480","ERX2326481","ERX2326482","ERX2326483","ERX2608048","ERX2608049","ERX2608050","ERX2608051","ERX2608052","ERX2608053","ERX2608054","ERX2608055","ERX2608056","ERX2608057","ERX2608058","ERX2608059","ERX2608060","ERX2608061","ERX2608062","SRX108134","SRX108135","SRX108136","SRX108137","SRX108138","SRX10813","SRX108140")
+
+str(Sputum_data)
+
+
+# Create the boxplot with points of the expression (normalized against HKG PA14_54450), log2 transformation and samples from sputum are highlighted in red
+
+relative_log2boxplot_sputum <- ggplot(data = relative_expression_ETC_full, aes(x = PA14_Gene, y = log2(relative_expression))) +
+  geom_boxplot(outlier.size = 0.5) + 
+  geom_point(data = subset(relative_expression_ETC_full, Sample %in% Sputum_samples),
+             aes(x = PA14_Gene, y = log2(relative_expression)),
+             color = "red",
+             size = 0.5) +
+  theme_bw() +
+  labs(x = "Gene", y = "Log2( Expression)", title = "Boxplot with Sample Points for Selected Genes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+relative_log2boxplot_sputum
+
+
+delta_expression_sputum <- ggplot(data = delta_expression_ETC_full, aes(x = PA14_Gene, y = log2_delta_expression)) +
+  geom_boxplot(outlier.size = 0.5) + 
+  geom_point(data = subset(delta_expression_ETC_full, Sample %in% Sputum_samples),
+             aes(x = PA14_Gene, y = log2_delta_expression),
+             color = "red",
+             size = 0.5) +
+  theme_bw() +
+  labs(x = "Gene", y = "delta log2 expression_nadB normalized", title = "Boxplot with Sample Points for Selected Genes") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+delta_expression_sputum
+
+
+
+BiocManager::install("ComplexHeatmap")
+library(ComplexHeatmap)
+
+#install.packages("readxl", repos = "http://cran.us.r-project.org")
+library(readxl)
+
+#install.packages("circlize", repos = "http://cran.us.r-project.org")
+library(circlize)
+
+Sputum_matrix <- as.matrix(Sputum_data) #Why this as.matrix() function? The Heatmap() function expects a data object called a matrix, where all of the variables are of the same data type (e.g., an integer), versus a data frame, where variables can be of different types (integers, strings, etc.)
+
+
+
+colres = colorRamp2(c(0, 2500, 5000, 7500, 10000), c("#005073", "#189ad3", "#ffbaba","#ff5252", "#ff0000")) #Pick basic colors to define the gradient
+
+
+Heatmap(Sputum_matrix, name = "TPM", col = colres, 
+        column_names_rot = 45,
+         column_names_gp = gpar(fontsize = 6),
+         row_names_gp = gpar(fontsize = 6))
+
+
+
+```
+
